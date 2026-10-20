@@ -1,0 +1,21 @@
+# Credentials and local configuration
+.secrets/
+.env
+.env.*
+!.env.example
+# Private wearable records, exports and databases
+data/
+exports/
+backups/
+*.db
+*.db-*
+*.sqlite*
+*.fit
+*.gpx
+# Temporary files and Python environments
+work/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
