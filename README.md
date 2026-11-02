@@ -4,7 +4,11 @@ Personal research and development project to combine Oura recovery data with Suu
 
 ## Project status
 
-Early development. No working data integration or public hosted service is currently provided. API registration and access are being arranged. The policies below describe the intended personal-use implementation and must be updated before offering a service to other users.
+A local containerized Oura dashboard is implemented. React, FastAPI, a dedicated sync worker and PostgreSQL run through Docker Compose. No public hosted service is provided. Suunto API approval is pending.
+
+Launch with `python3 scripts/start_local.py` to start the containers and refresh the Oura cache every time, including when services are already running.
+
+See [local development instructions](docs/LOCAL_DEVELOPMENT.md) for setup, architecture and cloud deployment prerequisites. Private health records and credentials remain outside Git. The policies below describe the intended personal-use implementation and must be updated before offering a service to other users.
 
 ## Planned capabilities
 
@@ -13,6 +17,14 @@ Early development. No working data integration or public hosted service is curre
 - Local storage, reproducible metrics and data freshness reporting.
 - Optional AI-assisted daily reviews and weekly training proposals.
 - Read-only MCP tools initially.
+
+## Training review
+
+The dashboard includes configurable goals, running availability and recovery rules. A session review is available in the app and through MCP. See [training logic and limits](docs/TRAINING.md).
+
+## Local MCP
+
+A read-only Oura MCP server is available as an optional Docker Compose service. See [MCP setup and tools](docs/MCP.md). It reads the local archive without Oura credentials and exposes no network port.
 
 ## Privacy Policy
 

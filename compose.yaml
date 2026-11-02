@@ -1,0 +1,72 @@
+name: personal-coach
+x-backend: &backend
+  build: ./backend
+  environment: &backend-env
+    DATABASE_URL: postgresql+psycopg://coach:${POSTGRES_PASSWORD:?Run python3 scripts/setup_local.py first}@db:5432/coach
+    OWNER_ID: local-owner
+    TIMEZONE: Europe/Belgrade
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: coach
+      POSTGRES_DB: coach
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - coach-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U coach -d coach']
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+  api:
+    <<: *backend
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      retries: 10
+  worker:
+    <<: *backend
+    depends_on:
+      api:
+        condition: service_healthy
+    command: [python, -m, app.worker]
+    environment:
+      <<: *backend-env
+      SECRETS_DIR: /run/coach-secrets
+      SYNC_LOOKBACK_DAYS: ${SYNC_LOOKBACK_DAYS:-90}
+      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-3600}
+    volumes:
+      - ./.secrets/oura-runtime:/run/coach-secrets
+  web:
+    build: ./frontend
+    ports:
+      - '127.0.0.1:${WEB_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+  mcp:
+    profiles: [mcp]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mcp
+    environment:
+      DATABASE_URL: postgresql+psycopg://coach_mcp:${MCP_DATABASE_PASSWORD:-not-configured}@db:5432/coach
+      OWNER_ID: local-owner
+      TIMEZONE: Europe/Belgrade
+    depends_on:
+      db:
+        condition: service_healthy
+    stdin_open: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+volumes:
+  coach-db:

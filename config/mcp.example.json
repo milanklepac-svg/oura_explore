@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "personal-coach": {
+      "command": "/bin/sh",
+      "args": ["/absolute/path/to/personal-coach/scripts/run_mcp.sh"]
+    }
+  }
+}
