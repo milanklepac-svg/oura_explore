@@ -38,6 +38,15 @@ def run_job(job_id):
     finally:
         client.close()
 
+def review_plan_after_sync():
+    from .services.planning import PlanningService
+    try:
+        PlanningService(engine, OWNER, os.getenv('TIMEZONE', 'Europe/Belgrade')).review()
+    except Exception:
+        # No private payloads or connection strings in worker output. Retry on next sync.
+        print('Local plan review failed; Oura sync remains complete. Retry Review plan in the app.', flush=True)
+
+
 def prepare_startup(db):
     for job in db.scalars(select(SyncJob).where(SyncJob.owner == OWNER, SyncJob.status == 'running')):
         job.status, job.detail, job.finished_at = 'failed', 'Worker restarted before sync completed.', now()
@@ -67,6 +76,8 @@ def main():
             if job_id:
                 try:
                     run_job(job_id)
+                    # Planning failure must not turn a successful provider sync into a failure.
+                    review_plan_after_sync()
                 except Exception as error:
                     detail = str(error) if isinstance(error, RuntimeError) else type(error).__name__
                     with Session.begin() as db:

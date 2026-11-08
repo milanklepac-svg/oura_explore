@@ -1,0 +1,7 @@
+*
+!requirements.txt
+!integration/
+!integration/*.py
+!integration/Dockerfile
+!e2e/
+!e2e/*.py

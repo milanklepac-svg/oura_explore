@@ -65,7 +65,10 @@ def main():
     command = [docker, 'compose', 'up', '-d']
     if not args.no_build:
         command.append('--build')
-    subprocess.run(command+['db','api','worker','web'], cwd=ROOT, check=True)
+    services = ['db', 'api', 'worker', 'web']
+    if settings().get('SUUNTO_ENABLED', '').lower() == 'true':
+        services.append('suunto-worker')
+    subprocess.run(command+services, cwd=ROOT, check=True)
     port = int(settings().get('WEB_PORT', '8080'))
     if not 1 <= port <= 65535:
         raise RuntimeError('Invalid WEB_PORT')

@@ -32,20 +32,27 @@ try:
     assert 'tools' in result['capabilities']
     send({'jsonrpc':'2.0','method':'notifications/initialized'})
     tools=request(2,'tools/list',{})['tools']
-    expected={'get_data_status','get_daily_metrics','get_recovery_context','get_workouts','get_training_summary','get_training_guidance'}
-    assert {tool['name'] for tool in tools}==expected
-    assert all(t['annotations']['readOnlyHint'] for t in tools)
+    expected={'get_data_status','get_daily_metrics','get_recovery_context','get_workouts','get_training_summary','get_training_guidance','get_race_plan','get_running_context','get_walking_context'}
+    assert {tool['name'] for tool in tools}==expected|{'adapt_training_plan'}
+    assert {t['name'] for t in tools if not t['annotations']['readOnlyHint']}=={'adapt_training_plan'}
     end=datetime.now(ZoneInfo('Europe/Belgrade')).date()
     start=end-timedelta(days=6)
     for index,name in enumerate(sorted(expected),3):
-        args={} if name=='get_data_status' else {'day':str(end)} if name in ('get_recovery_context','get_training_guidance') else {'start_date':str(start),'end_date':str(end)}
+        args={} if name in ('get_data_status','get_race_plan','get_running_context','get_walking_context') else {'day':str(end)} if name in ('get_recovery_context','get_training_guidance') else {'start_date':str(start),'end_date':str(end)}
         result=request(index,'tools/call',{'name':name,'arguments':args})
         assert not result.get('isError'),name+' returned a tool error'
         assert result.get('structuredContent') is not None,name+' did not return structured content; keys='+str(list(result))
+        if name == 'get_running_context':
+            context = result['structuredContent']
+            assert context['metadata']['source'] == 'reconciled_running_archive'
+            assert 'suunto' in context['metadata']['providers']
+            assert context['coverage'] == 'unconfirmed'
+        if name == 'get_data_status':
+            assert 'suunto' in result['structuredContent']
         print(name+': passed (payload kept private)')
     invalid=request(99,'tools/call',{'name':'get_daily_metrics','arguments':{'start_date':'2026-10-30','end_date':'2026-10-01'}})
     assert invalid.get('isError'),'Invalid date range should be rejected'
-    print('Stdio handshake, discovery, all 6 calls and invalid-range rejection passed.')
+    print('Stdio handshake, discovery, all 9 read-only calls and invalid-range rejection passed.')
 finally:
     selector.close()
     process.stdin.close()

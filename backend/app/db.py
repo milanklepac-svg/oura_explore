@@ -40,3 +40,36 @@ class TrainingProfile(Base):
     owner: Mapped[str] = mapped_column(String, primary_key=True)
     settings: Mapped[dict] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class RacePlan(Base):
+    __tablename__ = 'race_plans'
+    owner: Mapped[str] = mapped_column(String, primary_key=True)
+    settings: Mapped[dict] = mapped_column(JSON)
+    sessions: Mapped[list] = mapped_column(JSON)
+    revision: Mapped[int] = mapped_column(default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PlanAudit(Base):
+    __tablename__ = 'plan_audit'
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    owner: Mapped[str] = mapped_column(String, index=True)
+    revision: Mapped[int]
+    event: Mapped[str] = mapped_column(String)
+    detail: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+class SuuntoSyncJob(Base):
+    __tablename__ = 'suunto_sync_jobs'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner: Mapped[str] = mapped_column(String, index=True)
+    status: Mapped[str] = mapped_column(String, default='queued')
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    detail: Mapped[str | None] = mapped_column(String)
+
+class SuuntoQuota(Base):
+    __tablename__ = 'suunto_quota'
+    owner: Mapped[str] = mapped_column(String, primary_key=True)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)

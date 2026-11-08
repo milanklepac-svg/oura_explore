@@ -1,6 +1,6 @@
 # Local Oura MCP
 
-Personal Coach exposes six read-only tools using the official MCP Python SDK, pinned to 2.3.0 in a separate image. The server reads the existing PostgreSQL archive; it does not call Oura or mount wearable/GitHub credentials.
+Personal Coach exposes nine read-only tools and one bounded plan-adaptation tool using the official MCP Python SDK, pinned to 2.3.0 in a separate image. The server reads the existing PostgreSQL archive; it does not call Oura or mount wearable/GitHub credentials.
 
 ## Prepare
 
@@ -12,7 +12,7 @@ docker compose --profile mcp build mcp
 python3 scripts/test_mcp_stdio.py
 ```
 
-Setup creates a separate `coach_mcp` database login with SELECT grants on wearable records and sync jobs. Its randomly generated password stays in ignored `.env`. Transactions default to read-only. The role is not a superuser and cannot create databases or roles. It is not a tenant boundary: this remains a single-owner local application; future multi-user deployment needs independent authorization and database isolation policies.
+Setup creates a separate `coach_mcp` database login with SELECT grants on wearable records, Oura/Suunto sync jobs and Suunto quota state. Its randomly generated password stays in ignored `.env`. It also has SELECT/INSERT/UPDATE on `race_plans` and SELECT/INSERT on append-only `plan_audit`. Health records, sync jobs and training profiles remain SELECT-only. Transactions default to read-only; only plan mutations opt into a write transaction. The role is not a superuser and cannot create databases or roles. It is not a tenant boundary: this remains a single-owner local application; future multi-user deployment needs independent authorization and database isolation policies.
 
 `mcp` is an optional Compose profile. Do not run it as a detached web service. The MCP client launches a temporary container through `scripts/run_mcp.sh`, talks over stdin/stdout, and removes it on exit. No TCP port, public tunnel, extra API token or Oura approval is needed. The database and worker continue to run independently. Start the dashboard normally if they are stopped.
 
@@ -35,11 +35,15 @@ Configure goals and coaching thresholds in the local app. The training tool read
 | `get_recovery_context` | `day`, optional `baseline_days` (7–60, default 28) | Current metrics vs arithmetic mean of available previous days; observed-day counts and deltas |
 | `get_workouts` | date range, optional `activity`, `offset`, `limit` | Oura workouts, duration and distance; at most 100 per page, next offset when needed |
 | `get_training_summary` | date range | Workout totals by activity and missing-value counts |
+| `get_running_context` | none | Last 28 complete days of reconciled Suunto/Oura running summaries with provenance, conservative overlap matching, elapsed paces, four observed weekly totals, missing metrics and same-day ambiguity; no inferred fitness |
+| `get_walking_context` | optional ISO `day`, default local today | Seven provider days of automatically interpreted recorded walks, reasons, gaps, conservative heuristic and previous-day additional-load caution; no proven recovery benefit or running completion credit; see [WALKING.md](WALKING.md) |
+| `get_race_plan` | none | Race calendar, targets, sessions and latest audit events |
+| `adapt_training_plan` | `expected_revision` | Apply bounded adjustments or propose them, according to the app mode; see [RACE_PLANNING.md](RACE_PLANNING.md) |
 | `get_training_guidance` | day, planned session, optional minutes and check-in | Explain whether to retain or reconsider a session using app-saved rules and current data quality |
 
 Dates use ISO `YYYY-MM-DD`, inclusive, at most 90 days per request. Dates are provider days, not dates reconstructed from UTC. Overnight metrics select the longest main sleep; short sleeps and rest records are excluded. Every result includes source, collection freshness and limitations. Missing values are `null`, not zero. A baseline uses only observed values and excludes the target day; a mean based on a few observations should not be treated as a stable physiological baseline.
 
-Workouts expose an allowlist of fields. Free-text labels, routes and GPS coordinates are not exposed. No MCP tools write records, change training preferences, queue a sync, refresh tokens, send workouts, run arbitrary SQL, or diagnose overtraining. Use `python3 scripts/start_local.py` to launch and refresh the app, or the dashboard's Sync now button for fresh collection. MCP reads the resulting cache; it does not itself wait for a provider sync. Suunto and continuous heart-rate samples remain unavailable.
+Workouts expose an allowlist of fields. Free-text labels, routes and GPS coordinates are not exposed. Only `adapt_training_plan` writes plan/audit records. No MCP tools write health records, change training preferences, queue a sync, refresh tokens, send workouts, run arbitrary SQL, or diagnose overtraining. Use `python3 scripts/start_local.py` to launch and refresh the app, or the dashboard's Sync now button for fresh collection. MCP reads the resulting cache; it does not itself wait for a provider sync. Suunto running summaries are available after a separate worker sync; continuous heart-rate samples remain unavailable. Oura workout and recovery tools remain Oura-only. `get_data_status` includes independent Suunto sync and budget state. `get_running_context` prefers Suunto distance and active duration only for unambiguous time-matched runs; Oura-only runs carry an explicit fallback flag. Ambiguous overlaps remain visible, and missing Suunto distance stays unknown. See [SUUNTO.md](SUUNTO.md).
 
 Example questions after connecting a host:
 
@@ -65,7 +69,7 @@ docker compose --profile mcp run --rm -T --no-deps \
   -v "$PWD/scripts/check_mcp_reader.py:/check.py:ro" mcp python /check.py
 ```
 
-`test_mcp_stdio.py` launches the actual container and performs protocol initialization, tool discovery, all six calls and invalid-range rejection. It prints pass/fail only, not private tool payloads. The reader check attempts a no-row UPDATE inside a read-write transaction and verifies PostgreSQL denies it.
+`test_mcp_stdio.py` launches the actual container and performs protocol initialization, tool discovery, all nine read-only calls and invalid-range rejection. It prints pass/fail only, not private tool payloads. The reader check attempts a no-row UPDATE inside a read-write transaction and verifies PostgreSQL denies it.
 
 ## Modules and cloud path
 

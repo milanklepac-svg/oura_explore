@@ -1,5 +1,7 @@
 # Configurable training review
 
+For the separate calendar and active plan adjustments, see [RACE_PLANNING.md](RACE_PLANNING.md). This document describes the original read-only session-review tool.
+
 Open the local dashboard at http://localhost:8080 and use **Training setup**. Choose a goal, available running days, current weekly kilometres and optional goal note. Save settings before requesting a review. Expand **Customize recovery rules** to change the baseline window, required observation count, HRV drop, lowest overnight HR rise, sleep duration and readiness caution thresholds. These are advisory product heuristics, not validated physiological cutoffs.
 
 **Review a planned session** combines those saved rules with Oura recovery data, the previous seven provider days of workouts and an optional fatigue/soreness/illness-or-injury check-in. Answers are used for that request only and not stored as daily health records. Unknown answers stay unknown. The result includes its rule version, observed evidence, missing context and last successful sync.
@@ -34,7 +36,7 @@ Goals and rules persist in the local `training_profiles` table, scoped by owner.
 - `app/mcp_server.py`: `get_training_guidance` exposes the same service.
 - `frontend/src/TrainingPanel.jsx`: profile, rule controls and session review.
 
-Synthetic tests cover preference persistence, owner-scoped reads, unknown answers, stale/missing data, short baselines, correlated signals, custom thresholds, rest-day preservation, schedule restrictions and no automatic progression. MCP contract and real-container stdio tests include the sixth tool.
+Synthetic tests cover preference persistence, owner-scoped reads, unknown answers, stale/missing data, short baselines, correlated signals, custom thresholds, rest-day preservation, schedule restrictions and no automatic progression. MCP contract and real-container stdio tests include this session-review tool alongside the race-plan tools.
 
 ## References and limits of evidence
 

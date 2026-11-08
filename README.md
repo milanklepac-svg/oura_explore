@@ -16,15 +16,23 @@ See [local development instructions](docs/LOCAL_DEVELOPMENT.md) for setup, archi
 - Suunto running workout import, subject to API approval; FIT import as a fallback.
 - Local storage, reproducible metrics and data freshness reporting.
 - Optional AI-assisted daily reviews and weekly training proposals.
-- Read-only MCP tools initially.
+- Local MCP tools for recovery context and bounded race-plan adjustments.
 
 ## Training review
 
 The dashboard includes configurable goals, running availability and recovery rules. A session review is available in the app and through MCP. See [training logic and limits](docs/TRAINING.md).
 
+## Race calendar and automatic adjustments
+
+The local app supports multiple main races, intermediate milestones and target finish times. Its original easy/long-run template can shorten or ease sessions for poor recovery, cautiously reschedule missed long-run focus, and reduce the next week after repeated skips. Recent Oura runs provide recorded volume and spacing context. A Daniels-inspired option uses current fitness, explicit workout purposes and bounded quality work; see [approach and sources](docs/DANIELS.md). Choose automatic or approval-based mode in the app. See [race planning, storage and limits](docs/RACE_PLANNING.md).
+
 ## Local MCP
 
-A read-only Oura MCP server is available as an optional Docker Compose service. See [MCP setup and tools](docs/MCP.md). It reads the local archive without Oura credentials and exposes no network port.
+A local Oura and training-plan MCP server is available as an optional Docker Compose service. See [MCP setup and tools](docs/MCP.md). It reads the local archive without Oura credentials and exposes no network port.
+
+## Local development team
+
+Private ticket → branch → PR development uses local Mac workspaces, bounded Codex runs, independent QA and a synthetic Docker test stack. See [team setup and commands](docs/TEAM.md) and [test instructions](docs/TESTING.md). Hosted jobs use standard Ubuntu runners after verification of the account zero-spend stop. Public publication uses a separate [reviewed source export](docs/PUBLICATION.md).
 
 ## Privacy Policy
 
@@ -52,6 +60,6 @@ This is an experimental personal-use project. It currently provides no hosted se
 
 Use only accounts and records you are authorized to access, and comply with the relevant wearable and AI provider agreements. This project is independent of Oura, Suunto and OpenAI and is not endorsed by them.
 
-Reports and training proposals may be incomplete or incorrect. They are informational and are not medical diagnoses or a substitute for professional care. The user decides whether to adopt any training proposal.
+Reports and training proposals may be incomplete or incorrect. They are informational and are not medical diagnoses or a substitute for professional care. The user controls the adjustment mode and can choose suggestions requiring approval or automatic bounded changes. Race targets remain user-controlled.
 
 No software license has been selected yet; public visibility alone does not grant a license. These terms and the privacy policy will be revised as implementation choices are finalized.

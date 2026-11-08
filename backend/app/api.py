@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import date
 from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy import select, text
 from .db import Base, engine, Session, Record, SyncJob, OWNER
@@ -24,7 +25,7 @@ def dashboard():
     with Session() as db:
         records = db.scalars(select(Record).where(Record.owner == OWNER).order_by(Record.day)).all()
         job = db.scalar(select(SyncJob).where(SyncJob.owner == OWNER).order_by(SyncJob.id.desc()).limit(1))
-        return {'records': [{'kind': r.kind, 'day': r.day, 'data': r.payload} for r in records],
+        return {'records': [{'source': r.source, 'kind': r.kind, 'day': r.day, 'data': r.payload} for r in records],
                 'sync': None if job is None else {'status': job.status, 'detail': job.detail,
                   'requested_at': job.requested_at, 'finished_at': job.finished_at}}
 
@@ -79,3 +80,91 @@ def training_guidance(checkin: GuidanceRequest, request: Request):
         return TrainingService(engine, OWNER).guidance(checkin)
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
+
+
+from .services.planning import PlanningService, SavePlan, SessionUpdate, ReviewPlan, PlanMode, PlanConflict
+
+def planner():
+    import os
+    return PlanningService(engine, OWNER, os.getenv('TIMEZONE', 'Europe/Belgrade'))
+
+
+def plan_call(function, *args):
+    try:
+        return function(*args)
+    except PlanConflict as error:
+        raise HTTPException(409, str(error)) from None
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+
+
+@app.get('/api/plan')
+def race_plan():
+    return planner().get()
+
+
+@app.post('/api/plan')
+def save_race_plan(body: SavePlan, request: Request):
+    check_origin(request)
+    return plan_call(planner().save, body)
+
+
+@app.post('/api/plan/session')
+def update_session(body: SessionUpdate, request: Request):
+    check_origin(request)
+    return plan_call(planner().set_status, body)
+
+
+@app.post('/api/plan/review')
+def review_plan(body: ReviewPlan, request: Request):
+    check_origin(request)
+    return plan_call(planner().review, body)
+
+
+@app.post('/api/plan/mode')
+def plan_mode(body: PlanMode, request: Request):
+    check_origin(request)
+    return plan_call(planner().set_mode, body)
+
+
+@app.get('/api/running/context')
+def running_context(include_today: bool = False):
+    from .services.running import RunningService
+    import os
+    return RunningService(engine, OWNER, os.getenv('TIMEZONE', 'Europe/Belgrade')).context(include_today=include_today)
+
+
+@app.get('/api/walking/context')
+def walking_context(day: date | None = None):
+    from .services.walking import WalkingService
+    import os
+    return plan_call(WalkingService(engine, OWNER, os.getenv('TIMEZONE', 'Europe/Belgrade')).context, day)
+
+
+@app.get('/api/suunto/status')
+def suunto_status():
+    from .services.suunto_sync import status
+    with Session() as db:
+        return status(db, OWNER)
+
+
+@app.post('/api/suunto/sync', status_code=202)
+def suunto_sync(request: Request):
+    from .services.suunto_sync import enabled, queue_sync as queue_suunto
+    check_origin(request)
+    if not enabled():
+        raise HTTPException(409, 'Suunto is not configured; Oura collection remains available.')
+    with Session.begin() as db:
+        job, created = queue_suunto(db, OWNER)
+        return {'job_id': job.id, 'status': job.status, 'created': created}
+
+
+@app.get('/api/suunto/sync/{job_id}')
+def suunto_sync_status(job_id: int):
+    from .db import SuuntoSyncJob
+    from .services.suunto_sync import job_dto
+    with Session() as db:
+        job = db.scalar(select(SuuntoSyncJob).where(SuuntoSyncJob.id == job_id, SuuntoSyncJob.owner == OWNER))
+        if job is None:
+            raise HTTPException(404, 'Suunto sync job not found')
+        return job_dto(job)

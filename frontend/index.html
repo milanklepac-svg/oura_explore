@@ -1,1 +1,16 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Personal Coach</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Personal Coach</title><script>
+// Apply the browser preference before the dashboard paints.
+(() => {
+  let preference = 'system';
+  try {
+    const saved = localStorage.getItem('personal-coach-theme');
+    if (['light', 'dark', 'system'].includes(saved)) preference = saved;
+  } catch { /* Theme choice still works when browser storage is unavailable. */ }
+  const theme = preference === 'system'
+    ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : preference;
+  document.documentElement.dataset.themePreference = preference;
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+})();
+</script></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>

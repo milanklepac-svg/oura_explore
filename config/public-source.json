@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "files": [
+    ".dockerignore",
+    ".env.example",
+    ".gitignore",
+    "AGENTS.md",
+    "README.md",
+    "compose.yaml",
+    "backend/.dockerignore",
+    "backend/Dockerfile",
+    "backend/Dockerfile.mcp",
+    "backend/requirements.txt",
+    "backend/requirements-mcp.txt",
+    "frontend/.dockerignore",
+    "frontend/Dockerfile",
+    "frontend/index.html",
+    "frontend/nginx.conf",
+    "frontend/package.json",
+    "frontend/package-lock.json",
+    "config/mcp.example.json",
+    "config/public-source.json",
+    "compose.test.yaml",
+    "tests/requirements.txt",
+    "config/team.json",
+    "config/agent-result.schema.json",
+    ".codex/config.toml",
+    "tests/integration/Dockerfile",
+    "tests/.dockerignore"
+  ],
+  "directories": {
+    ".github/workflows": [
+      ".yml",
+      ".yaml"
+    ],
+    "backend/app": [
+      ".py"
+    ],
+    "backend/tests": [
+      ".py"
+    ],
+    "frontend/src": [
+      ".jsx",
+      ".js",
+      ".css",
+      ".svg"
+    ],
+    "scripts": [
+      ".py",
+      ".sh"
+    ],
+    "tests": [
+      ".py"
+    ],
+    "docs": [
+      ".md"
+    ],
+    "tools": [
+      ".py"
+    ],
+    ".codex/agents": [
+      ".toml"
+    ]
+  }
+}
