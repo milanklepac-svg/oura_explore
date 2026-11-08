@@ -1,0 +1,23 @@
+name: Local Coach checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: local-coach-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    # Enable only after the owner verifies included minutes and a $0 overage limit.
+    # Either missing/false variable skips the job before allocating a hosted runner.
+    if: ${{ vars.LOCAL_COACH_HOSTED_CI_ENABLED == 'true' && vars.LOCAL_COACH_BILLING_ZERO_VERIFIED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run local-equivalent checks
+        run: python3 scripts/check_local.py

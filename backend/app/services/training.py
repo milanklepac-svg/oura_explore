@@ -50,7 +50,7 @@ def load_profile(db, owner):
     return ProfileSettings.model_validate(row.settings) if row else ProfileSettings()
 
 
-def assess(profile, recovery, workouts, request, today, timestamp):
+def assess(profile, recovery, workouts, request, today, timestamp, walking=None):
     """Pure policy: no writes, provider requests, automatic progression or diagnosis."""
     rules, current = profile.rules, recovery['day']
     baseline = recovery['baseline']['metrics']
@@ -104,9 +104,12 @@ def assess(profile, recovery, workouts, request, today, timestamp):
     if request.soreness is not None and request.soreness >= 4:
         signal('high_soreness','subjective','You reported high soreness.',request.soreness,4)
     prior = str(request.day-timedelta(days=1))
-    hard = [w for w in workouts if w['day'] == prior and w.get('intensity') == 'high']
+    hard = [w for w in workouts if w['day'] == prior and w.get('intensity') == 'high'
+            and str(w.get('activity', '')).casefold() != 'walking']
     if hard:
         signal('recent_hard_session','recent_training','Oura recorded a high-intensity workout on the previous provider day.',len(hard),1)
+    if walking and walking['summary']['previous_day_additional_load']:
+        signal('recent_walking_load','recent_training','Credible recorded walking on the previous provider day exceeded the conservative easy-walking envelope; this does not diagnose fatigue.',1,1)
     available = profile.available_days
     weekday = ['mon','tue','wed','thu','fri','sat','sun'][request.day.weekday()]
     unavailable = bool(available) and weekday not in available
@@ -158,12 +161,13 @@ def assess(profile, recovery, workouts, request, today, timestamp):
             'automatic_progression':False},
         'evidence_quality':'limited' if gaps else 'sufficient_for_configured_rules',
         'signals':signals,'data_gaps':gaps,
+        'walking_context':walking,
         'recovery_evidence':{'day':current,'baseline':recovery['baseline']},
         'recent_workouts':{'period_start':str(request.day-timedelta(days=7)),'period_end':str(request.day-timedelta(days=1)),
                            'count':len(workouts),'high_intensity_previous_day':len(hard)},
         'limitations':['Advice requires your decision; historical results must not guide a current session.',
                        'Oura workout coverage is incomplete; no Suunto load, pace zones or validated training-stress model.',
-                       'No race plan, prescribed mileage increase or automatic schedule changes are generated.'],
+                       'This session-review tool does not change a schedule; use the separate local race-plan tools for bounded adjustments.'],
         'references':[{'url':'https://ouraring.com/blog/readiness-score/','use':'Vendor readiness interpretation only, not validation of this policy.'},
                       {'url':'https://www.cdc.gov/physical-activity-basics/measuring/index.html','use':'Talk test as a relative-effort cue, not a calibrated running zone.'}]}
 
@@ -185,4 +189,7 @@ class TrainingService:
         recovery=self.queries.recovery_context(request.day,profile.rules.baseline_days)
         with Session(self.engine) as db:
             workouts=self.queries._workouts(db,request.day-timedelta(days=7),request.day-timedelta(days=1))
-        return assess(profile,recovery,workouts,request,today,datetime.now(timezone.utc))
+        from .walking import WalkingService
+        timestamp=datetime.now(timezone.utc)
+        walking=WalkingService(self.engine,self.owner,str(self.queries.zone)).context(request.day,timestamp)
+        return assess(profile,recovery,workouts,request,today,timestamp,walking=walking)

@@ -1,0 +1,12 @@
+{
+  "repository": "example-owner/personal-coach-private",
+  "main_branch": "main",
+  "max_parallel_runs": 1,
+  "max_attempts_per_ticket": 2,
+  "agent_timeout_seconds": 600,
+  "max_prompt_characters": 6000,
+  "max_reported_tokens_per_agent": 20000,
+  "max_output_characters": 120000,
+  "auto_merge": false,
+  "hosted_ci_enabled": false
+}

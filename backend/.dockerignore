@@ -1,6 +1,20 @@
-.git
-.secrets
-.env
-data
-work
-outputs
+# Source-only build context. Review additions before admitting new file types.
+**
+!Dockerfile
+!Dockerfile.mcp
+!requirements.txt
+!requirements-mcp.txt
+!app/
+!app/**/
+!app/**/*.py
+**/.git
+**/.secrets
+**/.env*
+**/__pycache__
+**/data
+**/runtime
+**/exports
+**/backups
+**/outputs
+**/node_modules
+**/.venv

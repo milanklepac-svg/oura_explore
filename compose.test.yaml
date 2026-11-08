@@ -1,0 +1,102 @@
+# Standalone test stack: never combine this with compose.yaml.
+name: personal-coach-test
+x-test-environment: &test-environment
+  DATABASE_URL: postgresql+psycopg://coach_test:test-only-password@db:5432/coach_test
+  OWNER_ID: synthetic-test-owner
+  TIMEZONE: Europe/Belgrade
+  PYTHONDONTWRITEBYTECODE: '1'
+x-test-runner: &test-runner
+  image: personal-coach-checks:${COACH_TEST_RUN_ID:-local}
+  build:
+    context: ./backend
+    dockerfile: ../tests/integration/Dockerfile
+    additional_contexts:
+      checks: ./tests
+  environment: *test-environment
+  networks: [isolated]
+  read_only: true
+  tmpfs: [/tmp]
+  volumes:
+    - ./backend/tests:/unit-tests:ro
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: coach_test
+      POSTGRES_DB: coach_test
+      POSTGRES_PASSWORD: test-only-password
+    # No persistent volume, host port or production connection.
+    tmpfs: [/var/lib/postgresql/data]
+    networks: [isolated]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U coach_test -d coach_test']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api:
+    build: ./backend
+    environment: *test-environment
+    networks: [isolated]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  fake-worker:
+    <<: *test-runner
+    command: [python, /checks/integration/fake_worker.py]
+    depends_on:
+      api: {condition: service_healthy}
+  web:
+    build: ./frontend
+    networks: [isolated]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1/api/health']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  browser:
+    # Official image supports both Apple Silicon arm64 and GitHub amd64.
+    image: selenium/standalone-chromium:4.38.0-20251101
+    shm_size: 2gb
+    environment:
+      SE_ENABLE_TRACING: 'false'
+      SE_AVOID_STATS: 'true'
+      SE_SESSION_REQUEST_TIMEOUT: '60'
+      SE_NODE_MAX_SESSIONS: '1'
+    networks: [isolated]
+    healthcheck:
+      test: [CMD, /opt/bin/check-grid.sh, --host, '0.0.0.0', --port, '4444']
+      interval: 3s
+      timeout: 5s
+      retries: 40
+  checks:
+    <<: *test-runner
+    environment:
+      <<: *test-environment
+      TEST_API_URL: http://api:8000
+      TEST_WEB_URL: http://web
+      SELENIUM_URL: http://browser:4444
+    command: [python, -m, unittest, discover, -s, /checks/integration, -p, 'test_*.py', -v]
+  mcp-checks:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mcp
+    environment:
+      DATABASE_URL: sqlite://
+      PYTHONDONTWRITEBYTECODE: '1'
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - ./backend/tests/test_mcp_contract.py:/checks/test_mcp_contract.py:ro
+    command: [python, -m, unittest, discover, -s, /checks, -p, test_mcp_contract.py, -v]
+networks:
+  isolated:
+    internal: true

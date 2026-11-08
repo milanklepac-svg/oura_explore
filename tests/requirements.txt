@@ -1,0 +1,2 @@
+# Browser client only; app and MCP dependencies stay in their own images.
+selenium==4.38.0

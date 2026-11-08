@@ -47,9 +47,10 @@ class OuraQueries:
                 'latest_sync_status': latest.status if latest else None,
                 'limitations': ['Archive reflects the last successful collection, not live ring readings.',
                                 'Missing records are not evidence of rest or zero activity.',
-                                'Oura workouts are not Suunto workouts; Suunto is not connected.']}
+                                'Recovery and these workout queries use Oura only; use get_running_context for reconciled running.']}
 
     def data_status(self):
+        from .suunto_sync import status
         with Session(self.engine) as db:
             groups = db.execute(select(Record.kind, func.count(), func.min(Record.day), func.max(Record.day),
                                        func.max(Record.updated_at))
@@ -57,7 +58,9 @@ class OuraQueries:
             return {'metadata': self._metadata(db), 'datasets': [
                 {'kind': kind, 'records': count, 'first_day': first, 'last_day': last, 'last_ingested_at': iso(updated)}
                 for kind, count, first, last, updated in sorted(groups)],
-                'unavailable': ['suunto', 'heart_rate_time_series', 'training_plan', 'subjective_effort']}
+                'local_training_plan': {'tool':'get_race_plan','source':'user_configured_local_calendar'},
+                'suunto': status(db, self.owner),
+                'unavailable': ['heart_rate_time_series', 'subjective_effort']}
 
     def _days(self, db, start, end):
         days = date_range(start, end)

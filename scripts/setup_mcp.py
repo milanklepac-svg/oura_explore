@@ -1,4 +1,4 @@
-"""Provision one local database reader. Password is passed via stdin, never output."""
+"""Provision the local MCP role with isolated plan-writing permissions. Password is passed via stdin, never output."""
 from pathlib import Path
 import os
 import re
@@ -26,10 +26,12 @@ ALTER ROLE coach_mcp SET default_transaction_read_only = on;
 ALTER ROLE coach_mcp SET statement_timeout = '10s';
 GRANT CONNECT ON DATABASE coach TO coach_mcp;
 GRANT USAGE ON SCHEMA public TO coach_mcp;
-GRANT SELECT ON TABLE public.wearable_records, public.sync_jobs, public.training_profiles TO coach_mcp;
+GRANT SELECT ON TABLE public.wearable_records, public.sync_jobs, public.training_profiles, public.suunto_sync_jobs, public.suunto_quota TO coach_mcp;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.race_plans TO coach_mcp;
+GRANT SELECT, INSERT ON TABLE public.plan_audit TO coach_mcp;
 """ % password
 result = subprocess.run(['docker','compose','exec','-T','db','psql','-U','coach','-d','coach'],cwd=ROOT,
                         input=sql,text=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
 if result.returncode:
     raise SystemExit('Could not provision the MCP reader. Check the database and API are initialized. No credentials logged.')
-print('MCP database reader ready: SELECT-only, with default read-only transactions.')
+print('MCP ready: health data remains SELECT-only; bounded plan/audit writes allowed. Transactions default read-only.')

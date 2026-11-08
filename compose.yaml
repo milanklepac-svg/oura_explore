@@ -5,6 +5,7 @@ x-backend: &backend
     DATABASE_URL: postgresql+psycopg://coach:${POSTGRES_PASSWORD:?Run python3 scripts/setup_local.py first}@db:5432/coach
     OWNER_ID: local-owner
     TIMEZONE: Europe/Belgrade
+    SUUNTO_ENABLED: ${SUUNTO_ENABLED:-false}
   depends_on:
     db:
       condition: service_healthy
@@ -42,6 +43,20 @@ services:
       SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-3600}
     volumes:
       - ./.secrets/oura-runtime:/run/coach-secrets
+  suunto-worker:
+    <<: *backend
+    profiles: [suunto]
+    command: [python, -m, app.suunto_worker]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      <<: *backend-env
+      SUUNTO_SECRETS_DIR: /run/suunto-secrets
+      SUUNTO_SYNC_LOOKBACK_DAYS: ${SUUNTO_SYNC_LOOKBACK_DAYS:-90}
+      SUUNTO_SYNC_INTERVAL_SECONDS: ${SUUNTO_SYNC_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./.secrets/suunto-runtime:/run/suunto-secrets
   web:
     build: ./frontend
     ports:
@@ -59,6 +74,7 @@ services:
       DATABASE_URL: postgresql+psycopg://coach_mcp:${MCP_DATABASE_PASSWORD:-not-configured}@db:5432/coach
       OWNER_ID: local-owner
       TIMEZONE: Europe/Belgrade
+      SUUNTO_ENABLED: ${SUUNTO_ENABLED:-false}
     depends_on:
       db:
         condition: service_healthy
